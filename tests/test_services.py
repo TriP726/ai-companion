@@ -1,6 +1,7 @@
 """Tests for application services."""
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import tempfile
@@ -220,6 +221,155 @@ class TestVaultService:
         log = svc.get_audit_log()
         # At least the mode_change from import attempts
         assert isinstance(log, list)
+
+        svc.stop()
+
+
+class TestVaultGetFilePath:
+    """get_file_path() must never hand back a path outside the vault.
+
+    It grew up as plain concatenation plus .exists() — the only public
+    method in VaultService that skipped PathValidator, so a "../"
+    vault_path could reach any file on disk. These tests pin the
+    containment check so the fix cannot silently vanish again.
+    """
+
+    def _make_service(self, tmp_env, signal_bus, approve_tmp=False):
+        from ai_companion.services.vault_service import VaultService
+
+        config, tmp_path = tmp_env
+        config.vault.mode = VaultMode.NORMAL
+        if approve_tmp:
+            # Only the import test needs tmp_path approved; the escape
+            # tests deliberately leave it unapproved so files there are
+            # NOT valid targets.
+            config.vault.approved_folders.append(str(tmp_path))
+        svc = VaultService(config, signal_bus)
+        svc.start()
+        return svc, tmp_path
+
+    def test_real_vault_file_still_resolves(self, tmp_env, signal_bus):
+        """The containment check must not break the legitimate path."""
+        svc, tmp_path = self._make_service(tmp_env, signal_bus, approve_tmp=True)
+        src = tmp_path / "note.txt"
+        src.write_text("hello")
+        stored = svc.import_file(str(src), category="test")
+        assert stored is not None
+
+        full = svc.get_file_path(stored)
+        assert full is not None
+        assert full.exists()
+
+        svc.stop()
+
+    def test_parent_traversal_is_refused(self, tmp_env, signal_bus):
+        svc, _ = self._make_service(tmp_env, signal_bus)
+
+        # Exists on POSIX; on Windows must_exist=True fails instead.
+        # Either way the answer must be None, never a Path.
+        assert svc.get_file_path("../../etc/passwd") is None
+
+        svc.stop()
+
+    def test_traversal_to_a_real_file_is_refused(self, tmp_env, signal_bus):
+        """A crafted relative path that DOES resolve to a real file
+        outside the vault must still return None."""
+        svc, tmp_path = self._make_service(tmp_env, signal_bus)
+        outside = tmp_path / "outside.txt"
+        outside.write_text("not vault content")
+
+        rel = os.path.relpath(outside, svc._vault_root)
+        assert rel.startswith("..")  # sanity: it really escapes the vault
+        assert svc.get_file_path(rel) is None
+
+        svc.stop()
+
+    def test_absolute_path_to_outside_file_is_refused(self, tmp_env, signal_bus):
+        svc, tmp_path = self._make_service(tmp_env, signal_bus)
+        outside = tmp_path / "outside.txt"
+        outside.write_text("not vault content")
+
+        assert svc.get_file_path(str(outside)) is None
+
+        svc.stop()
+
+
+class TestImageGenLoopback:
+    """The ComfyUI worker must always bind to 127.0.0.1.
+
+    start_worker() used to pass config.image_gen.host straight to the
+    worker's --listen flag, and _submit_to_worker() used the same value
+    to build the request URL — so any stray config value put the worker
+    on the network while the class docstring claimed loopback-only. The
+    bind/connect address is now pinned; only the port is configurable.
+    """
+
+    def _make_service(self, tmp_env, signal_bus, host="0.0.0.0"):
+        from ai_companion.services.image_gen_service import ImageGenService
+
+        config, tmp_path = tmp_env
+        comfyui = tmp_path / "comfyui"
+        comfyui.mkdir()
+        config.image_gen.comfyui_path = str(comfyui)
+        config.image_gen.host = host  # mistaken or hostile value
+        svc = ImageGenService(config, signal_bus)
+        svc.start()
+        return svc
+
+    def test_worker_always_binds_loopback(self, tmp_env, signal_bus):
+        svc = self._make_service(tmp_env, signal_bus)
+
+        with patch("subprocess.Popen") as popen:
+            assert svc.start_worker() is True
+
+        cmd = popen.call_args.args[0]
+        assert cmd[cmd.index("--listen") + 1] == "127.0.0.1"
+
+        svc.stop()
+
+    def test_ignored_host_is_reported(self, tmp_env, signal_bus):
+        """Silently overriding the user's config would be its own bug —
+        the service must say why the value was ignored."""
+        statuses = []
+        signal_bus.service.status_changed.connect(
+            lambda _name, msg: statuses.append(msg)
+        )
+        svc = self._make_service(tmp_env, signal_bus, host="0.0.0.0")
+
+        with patch("subprocess.Popen"):
+            svc.start_worker()
+
+        assert any("ignored" in msg and "0.0.0.0" in msg for msg in statuses)
+
+        svc.stop()
+
+    def test_loopback_config_produces_no_warning(self, tmp_env, signal_bus):
+        statuses = []
+        signal_bus.service.status_changed.connect(
+            lambda _name, msg: statuses.append(msg)
+        )
+        svc = self._make_service(tmp_env, signal_bus, host="127.0.0.1")
+
+        with patch("subprocess.Popen"):
+            svc.start_worker()
+
+        assert not any("ignored" in msg for msg in statuses)
+
+        svc.stop()
+
+    def test_submissions_post_to_loopback(self, tmp_env, signal_bus):
+        svc = self._make_service(tmp_env, signal_bus, host="192.168.1.50")
+        svc._worker_running = True  # pretend a worker is up
+
+        resp = MagicMock()
+        resp.read.return_value = json.dumps({"prompt_id": "abc"}).encode()
+        resp.__enter__.return_value = resp
+        with patch("urllib.request.urlopen", return_value=resp) as urlopen:
+            assert svc.generate("a lighthouse at dawn") is not None
+
+        request = urlopen.call_args.args[0]
+        assert request.full_url.startswith("http://127.0.0.1:")
+        assert "192.168.1.50" not in request.full_url
 
         svc.stop()
 

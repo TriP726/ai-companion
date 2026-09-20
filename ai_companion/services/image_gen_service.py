@@ -10,11 +10,24 @@ from typing import Any, Optional
 from ai_companion.infrastructure.base_service import BaseService
 
 
+# The worker is only ever meant to be reached by this app, on this
+# machine. It used to bind and connect using config.image_gen.host,
+# trusting whatever was in config.json — the docstring below claimed
+# "binds to 127.0.0.1 only" but nothing made that true except the
+# current config value happening to be 127.0.0.1. Pinning it here means
+# a bad config value (typo, bad patch, a future settings field) can no
+# longer put the worker on the network. Port stays configurable; the
+# bind/connect address does not.
+_LOOPBACK_HOST = "127.0.0.1"
+
+
 class ImageGenService(BaseService):
     """Manages local image generation via ComfyUI.
 
     Security:
-    - Worker binds to 127.0.0.1 only
+    - Worker is launched bound to 127.0.0.1 unconditionally (see
+      _LOOPBACK_HOST above) — config.image_gen.host is no longer
+      consulted for this, so it cannot expose the worker to the network
     - Output goes to approved directory only
     - All paths validated
     """
@@ -58,9 +71,17 @@ class ImageGenService(BaseService):
 
         try:
             import subprocess
+
+            if self._config.image_gen.host != _LOOPBACK_HOST:
+                self.emit_status(
+                    f"image_gen.host is set to '{self._config.image_gen.host}' "
+                    f"in config.json but is ignored — the worker always binds "
+                    f"to {_LOOPBACK_HOST} only."
+                )
+
             cmd = [
                 "python", str(comfyui_path / "main.py"),
-                "--listen", self._config.image_gen.host,
+                "--listen", _LOOPBACK_HOST,
                 "--port", str(self._config.image_gen.port),
             ]
             self._worker_process = subprocess.Popen(
@@ -149,7 +170,7 @@ class ImageGenService(BaseService):
             import urllib.request
             import urllib.error
 
-            url = f"http://{self._config.image_gen.host}:{self._config.image_gen.port}/prompt"
+            url = f"http://{_LOOPBACK_HOST}:{self._config.image_gen.port}/prompt"
             payload = json.dumps({
                 "prompt": {
                     "3": {

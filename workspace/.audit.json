@@ -2,7 +2,7 @@
   "_meta": {
     "version": "1",
     "created": "2026-09-20T00:27:56.028355+00:00",
-    "modified": "2026-09-20T16:35:00.869000+00:00"
+    "modified": "2026-09-20T17:01:22.434310+00:00"
   },
   "items": {
     "0": {
@@ -1042,6 +1042,86 @@
     },
     "207": {
       "timestamp": "2026-09-20T16:35:00.868963+00:00",
+      "operation": "write",
+      "detail": "audited.txt"
+    },
+    "208": {
+      "timestamp": "2026-09-20T17:00:26.635573+00:00",
+      "operation": "write",
+      "detail": "hello.txt"
+    },
+    "209": {
+      "timestamp": "2026-09-20T17:00:26.635673+00:00",
+      "operation": "read",
+      "detail": "hello.txt"
+    },
+    "210": {
+      "timestamp": "2026-09-20T17:00:26.639054+00:00",
+      "operation": "write",
+      "detail": "a.txt"
+    },
+    "211": {
+      "timestamp": "2026-09-20T17:00:26.639166+00:00",
+      "operation": "write",
+      "detail": "b.txt"
+    },
+    "212": {
+      "timestamp": "2026-09-20T17:00:26.639227+00:00",
+      "operation": "mkdir",
+      "detail": "subdir"
+    },
+    "213": {
+      "timestamp": "2026-09-20T17:00:26.642377+00:00",
+      "operation": "write",
+      "detail": "delete_me.txt"
+    },
+    "214": {
+      "timestamp": "2026-09-20T17:00:26.642490+00:00",
+      "operation": "delete",
+      "detail": "delete_me.txt"
+    },
+    "215": {
+      "timestamp": "2026-09-20T17:00:26.645731+00:00",
+      "operation": "write",
+      "detail": "audited.txt"
+    },
+    "216": {
+      "timestamp": "2026-09-20T17:01:22.422902+00:00",
+      "operation": "write",
+      "detail": "hello.txt"
+    },
+    "217": {
+      "timestamp": "2026-09-20T17:01:22.423050+00:00",
+      "operation": "read",
+      "detail": "hello.txt"
+    },
+    "218": {
+      "timestamp": "2026-09-20T17:01:22.426431+00:00",
+      "operation": "write",
+      "detail": "a.txt"
+    },
+    "219": {
+      "timestamp": "2026-09-20T17:01:22.426579+00:00",
+      "operation": "write",
+      "detail": "b.txt"
+    },
+    "220": {
+      "timestamp": "2026-09-20T17:01:22.426643+00:00",
+      "operation": "mkdir",
+      "detail": "subdir"
+    },
+    "221": {
+      "timestamp": "2026-09-20T17:01:22.430770+00:00",
+      "operation": "write",
+      "detail": "delete_me.txt"
+    },
+    "222": {
+      "timestamp": "2026-09-20T17:01:22.430867+00:00",
+      "operation": "delete",
+      "detail": "delete_me.txt"
+    },
+    "223": {
+      "timestamp": "2026-09-20T17:01:22.434273+00:00",
       "operation": "write",
       "detail": "audited.txt"
     }

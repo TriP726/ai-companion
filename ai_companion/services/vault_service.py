@@ -252,11 +252,36 @@ class VaultService(PrivacyMixin, BaseService):
         return files
 
     def get_file_path(self, vault_path: str) -> Optional[Path]:
-        """Get the full filesystem path for a vault file."""
-        full = self._vault_root / vault_path
-        if full.exists():
-            return full
-        return None
+        """Get the full filesystem path for a vault file.
+
+        This used to be `self._vault_root / vault_path` with only an
+        `.exists()` check — no `.resolve()`, no containment check, no
+        null-byte check. Every other method in this file routes through
+        `PathValidator`; this one didn't, so a crafted `vault_path`
+        containing `../` segments (or an absolute path) could resolve
+        outside the vault entirely and hand back a Path to an arbitrary
+        file on disk. Nothing in the shipped UI calls this today, but it's
+        a public method other code will eventually call (an attachment
+        picker, a memory's provenance link, etc.), so it needs the same
+        guarantee as import_file()/remove_file() now rather than whenever
+        someone notices in production.
+
+        Extension is not re-checked here: it was already validated at
+        import time, and re-checking on every read would wrongly block
+        access to a file whose extension is no longer in the allowlist
+        after a config change, even though it's already safely inside the
+        vault.
+        """
+        if self._path_validator is None:
+            return None
+        try:
+            return self._path_validator.validate_path(
+                str(self._vault_root / vault_path),
+                must_exist=True,
+                check_extension=False,
+            )
+        except PathValidationError:
+            return None
 
     def can_write_outside(self) -> bool:
         """In private mode, writing outside vault is forbidden."""
