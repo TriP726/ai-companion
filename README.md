@@ -100,12 +100,13 @@ python -m pytest tests/ -v
 pip install pyinstaller
 pyinstaller ai_companion.spec
 # Output: dist/AICompanion.exe
+# Or run the full verified build: python tools/build_exe.py
 ```
 
 ## Project Structure
 
 ```
-├── ai_companion/
+├── ai_companion/            # Application package
 │   ├── main.py              # Entry point
 │   ├── config.py            # Configuration management
 │   ├── infrastructure/      # Core framework
@@ -113,12 +114,33 @@ pyinstaller ai_companion.spec
 │   ├── models/              # Data models (Pydantic)
 │   └── ui/                  # PySide6 GUI
 ├── tests/                   # pytest test suite
+├── tools/                   # Helper scripts (build, models, diagnostics)
 ├── assets/                  # Application icons
-├── config.json              # Runtime configuration
+├── config.json              # Runtime configuration (created on first run)
 ├── ai_companion.spec        # PyInstaller packaging spec
 ├── architecture.md          # Detailed architecture document
-└── pyproject.toml           # Project metadata
+├── requirements.txt         # Runtime dependencies
+├── pyproject.toml           # Project metadata
+└── run.bat                  # Double-click launcher (Windows)
 ```
+
+## Helper Tools
+
+Run from the project root with the venv Python:
+
+| Script | Purpose |
+|--------|---------|
+| `tools/get_model.py` | Download a GGUF chat model |
+| `tools/get_speech.py` | Download local speech (STT/TTS) models |
+| `tools/audition_voices.py` | Compare installed TTS voices |
+| `tools/create_icon.py` | Regenerate the multi-resolution app icon |
+| `tools/build_exe.py` | Full verified PyInstaller build |
+| `tools/verify_build.py` | Confirm `dist/` is current, not stale |
+| `tools/diagnose_config.py` | Inspect configuration problems |
+| `tools/diagnose_model.py` | Check the configured model file |
+| `tools/diagnose_memories.py` | Inspect the memory store |
+| `tools/recover_memories.py` | Recover memories from backups |
+| `tools/repair_config.py` | Reset a broken `config.json` |
 
 ## Configuration
 

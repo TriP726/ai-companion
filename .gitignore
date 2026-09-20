@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Test and build residue
+.pytest_cache/
+build/
+dist/
+
+# Large artifacts that must never be committed. All of these are
+# regenerated on demand:
+#   models/        -> tools/get_model.py / tools/get_speech.py
+#   voice_samples/ -> tools/audition_voices.py
+# NOTE: anchored to the repo root — an unanchored "models/" also hides
+# ai_companion/models/ (the Pydantic package), and did exactly that once.
+/models/
+/voice_samples/
+*.zip
+*.wav
+*.part
+
+# Screenshots taken while verifying UI work
+*.png
+!assets/*.png
+
+# Local runtime state — created on demand at first launch
+/config.json
+/config.json.tmp
+/config.json.broken-*
+/data/
+/workspace/
+/uploads/
+/sandbox3d/
+/sandbox/
+/vault/
+/generated_images/
+
+# Stray environment markers
+.sudo_as_admin_successful
