@@ -1,0 +1,33 @@
+# Large artifacts that must never be committed or counted against the
+# workspace budget. All of these are regenerated on demand:
+#   models/        -> get_speech.py / get_model.py
+#   voice_samples/ -> audition_voices.py
+models/
+voice_samples/
+data_backups/
+patches_backup/
+
+# Build and test residue
+__pycache__/
+*.pyc
+.pytest_cache/
+*.zip
+*.wav
+*.part
+
+# Screenshots taken while verifying UI work
+*.png
+!assets/*.png
+
+# Local state
+config.json
+config.json.tmp
+config.json.broken-*
+data/
+sandbox/
+vault/
+generated_images/
+
+# Python environment
+.venv/
+.sudo_as_admin_successful
