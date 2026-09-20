@@ -242,7 +242,7 @@ class SettingsPanel(QDialog):
 
         if not voices:
             hint = QLabel(
-                "No voices found. Run get_speech.py to download them."
+                "No voices found. Run tools/get_speech.py to download them."
             )
             hint.setObjectName("MetaText")
             hint.setWordWrap(True)
@@ -262,7 +262,7 @@ class SettingsPanel(QDialog):
             self._tts_engine.setCurrentIndex(position)
         self._tts_engine.setToolTip(
             "Kokoro sounds more natural but takes about as long to generate "
-            "as the reply lasts. Run audition_voices.py to compare."
+            "as the reply lasts. Run tools/audition_voices.py to compare."
         )
         speech_form.addRow("Speech engine:", self._tts_engine)
 

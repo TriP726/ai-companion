@@ -18,7 +18,7 @@ back at them.
 
 Run from the project root with the venv Python:
 
-    .venv\\Scripts\\python.exe repair_config.py
+    .venv\\Scripts\\python.exe tools/repair_config.py
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def looks_like_temp(value: str) -> bool:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]  # repo root (this file lives in tools/)
     config_path = root / "config.json"
 
     print("=" * 66)

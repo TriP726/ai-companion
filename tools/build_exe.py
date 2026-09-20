@@ -2,7 +2,7 @@
 
 Run from the project root with the venv Python:
 
-    .venv\\Scripts\\python.exe build_exe.py
+    .venv\\Scripts\\python.exe tools/build_exe.py
 
 WHY A SCRIPT RATHER THAN RUNNING PYINSTALLER DIRECTLY
 -----------------------------------------------------
@@ -22,7 +22,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]  # repo root (this file lives in tools/)
 
 # (import name, pip name, why it is needed)
 REQUIRED = [
@@ -77,13 +77,13 @@ def preflight() -> bool:
         sys.executable if not in_venv else "",
     )
     if not in_venv:
-        print("\n      Use: .venv\\Scripts\\python.exe build_exe.py")
+        print("\n      Use: .venv\\Scripts\\python.exe tools/build_exe.py")
         print("      Building with the wrong interpreter bundles the wrong")
         print("      packages, and the failure only appears at runtime.\n")
 
     ok &= check("spec file present", (ROOT / "ai_companion.spec").is_file())
     ok &= check("icon present", (ROOT / "assets" / "app.ico").is_file(),
-                "run create_icon.py" if not
+                "run tools/create_icon.py" if not
                 (ROOT / "assets" / "app.ico").is_file() else "")
     ok &= check("entry point present",
                 (ROOT / "ai_companion" / "main.py").is_file())

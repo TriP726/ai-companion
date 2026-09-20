@@ -176,7 +176,7 @@ class KokoroSynthesiser:
             voices = self._dir / "voices-v1.0.bin"
             if not model.exists() or not voices.exists():
                 return False, (
-                    "Kokoro model files not found. Run get_speech.py and "
+                    "Kokoro model files not found. Run tools/get_speech.py and "
                     "choose the Kokoro option."
                 )
             try:
@@ -261,7 +261,7 @@ class Synthesiser:
             if self._voice is not None:
                 return True, ""
             if not self._voice_path:
-                return False, "No voice selected. Run get_speech.py."
+                return False, "No voice selected. Run tools/get_speech.py."
             path = Path(self._voice_path)
             if not path.exists():
                 return False, f"Voice file not found: {path}"

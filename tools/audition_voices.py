@@ -5,7 +5,7 @@ JARVIS to you. This writes them all to disk and you decide.
 
 Run from the project root with the venv Python:
 
-    .venv\\Scripts\\python.exe audition_voices.py
+    .venv\\Scripts\\python.exe tools/audition_voices.py
 
 Files land in voice_samples\\ - play them, pick a favourite, then set the
 voice and character in CONFIG -> Speech.
@@ -24,7 +24,7 @@ LINE = (
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]  # repo root (this file lives in tools/)
     voices_dir = root / "models" / "piper"
     out_dir = root / "voice_samples"
 
@@ -34,13 +34,13 @@ def main() -> int:
 
     if not voices_dir.is_dir():
         print(f"\nNo voices found at {voices_dir}")
-        print("Run get_speech.py first.")
+        print("Run tools/get_speech.py first.")
         return 1
 
     voices = sorted(voices_dir.glob("*.onnx"))
     if not voices:
         print(f"\nNo .onnx voices in {voices_dir}")
-        print("Run get_speech.py first.")
+        print("Run tools/get_speech.py first.")
         return 1
 
     try:
@@ -95,7 +95,7 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             print(f"   kokoro unavailable: {exc}")
     else:
-        print("kokoro not installed - run get_speech.py to add it\n")
+        print("kokoro not installed - run tools/get_speech.py to add it\n")
 
     print()
     for voice_path in voices:

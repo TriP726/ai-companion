@@ -2,7 +2,7 @@
 
 Run from the project root with the venv Python:
 
-    .venv\\Scripts\\python.exe get_model.py
+    .venv\\Scripts\\python.exe tools/get_model.py
 
 Downloads over HTTPS from huggingface.co with a resumable request, verifies
 the file size, and offers to update config.json. Nothing is downloaded
@@ -110,7 +110,7 @@ def download(url: str, dest: Path) -> bool:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]  # repo root (this file lives in tools/)
     print("=" * 66)
     print("  DOWNLOAD A BETTER MODEL")
     print("=" * 66)

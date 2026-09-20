@@ -1,16 +1,20 @@
-# Large artifacts that must never be committed or counted against the
-# workspace budget. All of these are regenerated on demand:
-#   models/        -> get_speech.py / get_model.py
-#   voice_samples/ -> audition_voices.py
-models/
-voice_samples/
-data_backups/
-patches_backup/
-
-# Build and test residue
+# Python
 __pycache__/
 *.pyc
+.venv/
+*.egg-info/
+
+# Test and build residue
 .pytest_cache/
+build/
+dist/
+
+# Large artifacts that must never be committed. All of these are
+# regenerated on demand:
+#   models/        -> tools/get_model.py / tools/get_speech.py
+#   voice_samples/ -> tools/audition_voices.py
+models/
+voice_samples/
 *.zip
 *.wav
 *.part
@@ -19,15 +23,17 @@ __pycache__/
 *.png
 !assets/*.png
 
-# Local state
+# Local runtime state — created on demand at first launch
 config.json
 config.json.tmp
 config.json.broken-*
 data/
+workspace/
+uploads/
+sandbox3d/
 sandbox/
 vault/
 generated_images/
 
-# Python environment
-.venv/
+# Stray environment markers
 .sudo_as_admin_successful

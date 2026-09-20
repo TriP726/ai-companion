@@ -2,7 +2,7 @@
 
 Run from the project root with the venv Python:
 
-    .venv\\Scripts\\python.exe diagnose_memories.py
+    .venv\\Scripts\\python.exe tools/diagnose_memories.py
 
 READ-ONLY. It never writes to your stores. It reports what is on disk, what
 the app would load, and whether anything looks corrupted or misplaced.
@@ -98,7 +98,7 @@ def describe_store(path: Path, label: str) -> int:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]  # repo root (this file lives in tools/)
     print("=" * 66)
     print("  MEMORY DIAGNOSTIC (read-only)")
     print("=" * 66)

@@ -2,7 +2,7 @@
 
 Run from the project root with the venv Python:
 
-    .venv\\Scripts\\python.exe verify_build.py
+    .venv\\Scripts\\python.exe tools/verify_build.py
 
 Answers one question: is the exe you are running built from the patched
 source, or is it a stale binary from an earlier build?
@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]  # repo root (this file lives in tools/)
 
 
 def stamp(path: Path) -> str:
@@ -46,8 +46,8 @@ def main() -> int:
         print(f"    config.py modified         : {stamp(config)}")
 
     if not (has_app_root and has_llama):
-        print("\n    The PATCH is not installed. Run:")
-        print("        .venv\\Scripts\\python.exe install_patch.py")
+        print("\n    The source tree is out of date. Update it (git pull)")
+        print("    before building.")
         return 1
 
     # --- 2. does a build exist, and is it newer than the source? ---
@@ -57,7 +57,7 @@ def main() -> int:
 
     if not exe.is_file():
         print("    No exe found. Run:")
-        print("        .venv\\Scripts\\python.exe build_exe.py")
+        print("        .venv\\Scripts\\python.exe tools/build_exe.py")
         return 1
 
     print(f"    exe built    : {stamp(exe)}")
@@ -67,7 +67,7 @@ def main() -> int:
         print("\n    STALE: the exe is OLDER than the patched source.")
         print("    You are running a binary built before the fixes.")
         print("    Rebuild:")
-        print("        .venv\\Scripts\\python.exe build_exe.py")
+        print("        .venv\\Scripts\\python.exe tools/build_exe.py")
         return 1
     print("    exe is newer than the source (good)")
 

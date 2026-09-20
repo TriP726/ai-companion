@@ -170,7 +170,7 @@ class ChatPanel(QWidget):
         self._voice_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._voice_btn.setToolTip(
             "Hands-free voice. Say the wake word, then speak.\n"
-            "Run get_speech.py first to download the models."
+            "Run tools/get_speech.py first to download the models."
         )
         self._voice_btn.clicked.connect(self._toggle_voice)
         header_row.addWidget(self._voice_btn)

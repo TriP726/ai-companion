@@ -2,7 +2,7 @@
 
 Run from the project root with the venv Python:
 
-    .venv\\Scripts\\python.exe diagnose_config.py
+    .venv\\Scripts\\python.exe tools/diagnose_config.py
 
 Read-only except for one clearly-labelled write test. Prints exactly which
 config.json the app uses, what is in it, and whether it can be written.

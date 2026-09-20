@@ -10,7 +10,7 @@ and offers to restore the best one.
 
 Run from the project root with the venv Python:
 
-    .venv\\Scripts\\python.exe recover_memories.py
+    .venv\\Scripts\\python.exe tools/recover_memories.py
 
 Nothing is overwritten without a backup and an explicit yes.
 """
@@ -50,7 +50,7 @@ def record_count(path: Path) -> int:
 def search_roots() -> list[Path]:
     """Places worth searching, deepest-value first."""
     roots: list[Path] = []
-    project = Path(__file__).resolve().parent
+    project = Path(__file__).resolve().parents[1]  # repo root (this file lives in tools/)
     roots.append(project)
 
     home = Path.home()
@@ -115,7 +115,7 @@ def find_stores(name: str) -> list[tuple[int, Path, float]]:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]  # repo root (this file lives in tools/)
     print("=" * 66)
     print("  MEMORY RECOVERY")
     print("=" * 66)

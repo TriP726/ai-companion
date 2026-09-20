@@ -6,8 +6,8 @@ WHY THIS EXISTS
 persists to it. Together that meant running the test suite rewrote the
 developer's REAL config: model path wiped to "", vault flipped to private.
 
-Because `install_patch.py` runs the suite after copying files, every install
-silently destroyed the user's settings. Reproduced:
+An earlier installer used to run the suite after copying files, so every
+install silently destroyed the user's settings. Reproduced:
 
     BEFORE  model_path: C:/models/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf
             vault     : normal

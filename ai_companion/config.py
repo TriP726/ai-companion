@@ -176,7 +176,7 @@ class ConfigManager(QObject):
             self._migration_notes.append(
                 "Storage paths pointed into a temp folder and have been reset "
                 "to the defaults under data\\. If memories look missing, run "
-                "recover_memories.py."
+                "tools/recover_memories.py."
             )
             self._migration_dirty = True
         return data

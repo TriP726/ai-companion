@@ -2,7 +2,7 @@
 
 Run from the project root with the venv Python:
 
-    .venv\\Scripts\\python.exe get_speech.py
+    .venv\\Scripts\\python.exe tools/get_speech.py
 
 Downloads are explicit and resumable. Nothing is fetched automatically by the
 app itself - that would break the no-automatic-downloads rule this project was
@@ -108,7 +108,7 @@ def download(url: str, dest: Path) -> bool:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]  # repo root (this file lives in tools/)
     voices_dir = root / "models" / "piper"
     voices_dir.mkdir(parents=True, exist_ok=True)
 

@@ -1418,8 +1418,8 @@ class TestTestsCannotClobberRealConfig:
     """The suite must never touch the developer's config — 2026-09-19.
 
     Running the tests used to rewrite the real config.json: model_path wiped
-    to "" and vault flipped to private. install_patch.py runs the suite, so
-    every install silently destroyed the user's settings.
+    to "" and vault flipped to private. An earlier installer ran the suite
+    in place, so every install silently destroyed the user's settings.
     """
 
     def test_config_path_is_redirected_during_tests(self):
@@ -1836,7 +1836,7 @@ class TestPackagingSpec:
         import ai_companion
 
         root = Path(ai_companion.__file__).resolve().parent.parent
-        script = root / "build_exe.py"
+        script = root / "tools" / "build_exe.py"
         assert script.is_file()
         ast.parse(script.read_text(encoding="utf-8"))
 
@@ -2008,7 +2008,7 @@ class TestBuildScriptGuards:
         import ai_companion
 
         root = Path(ai_companion.__file__).resolve().parent.parent
-        return (root / "build_exe.py").read_text(encoding="utf-8")
+        return (root / "tools" / "build_exe.py").read_text(encoding="utf-8")
 
     def test_verifies_llama_libraries(self):
         """The exact thing that was missing on the first build."""
@@ -2033,7 +2033,7 @@ class TestBuildScriptGuards:
         import ai_companion
 
         root = Path(ai_companion.__file__).resolve().parent.parent
-        script = root / "verify_build.py"
+        script = root / "tools" / "verify_build.py"
         assert script.is_file()
         ast.parse(script.read_text(encoding="utf-8"))
 
@@ -2044,7 +2044,7 @@ class TestBuildScriptGuards:
         import ai_companion
 
         root = Path(ai_companion.__file__).resolve().parent.parent
-        script = (root / "verify_build.py").read_text(encoding="utf-8")
+        script = (root / "tools" / "verify_build.py").read_text(encoding="utf-8")
         assert "STALE" in script
         assert "st_mtime" in script
 
