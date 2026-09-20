@@ -13,8 +13,10 @@ dist/
 # regenerated on demand:
 #   models/        -> tools/get_model.py / tools/get_speech.py
 #   voice_samples/ -> tools/audition_voices.py
-models/
-voice_samples/
+# NOTE: anchored to the repo root — an unanchored "models/" also hides
+# ai_companion/models/ (the Pydantic package), and did exactly that once.
+/models/
+/voice_samples/
 *.zip
 *.wav
 *.part
@@ -24,16 +26,16 @@ voice_samples/
 !assets/*.png
 
 # Local runtime state — created on demand at first launch
-config.json
-config.json.tmp
-config.json.broken-*
-data/
-workspace/
-uploads/
-sandbox3d/
-sandbox/
-vault/
-generated_images/
+/config.json
+/config.json.tmp
+/config.json.broken-*
+/data/
+/workspace/
+/uploads/
+/sandbox3d/
+/sandbox/
+/vault/
+/generated_images/
 
 # Stray environment markers
 .sudo_as_admin_successful
