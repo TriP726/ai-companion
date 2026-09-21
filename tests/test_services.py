@@ -211,6 +211,53 @@ class TestVaultService:
 
         svc.stop()
 
+    @staticmethod
+    def _import_then_enter_private(tmp_env, signal_bus):
+        from ai_companion.services.vault_service import VaultService
+
+        config, tmp_path = tmp_env
+        config.vault.mode = VaultMode.NORMAL
+        config.vault.approved_folders.append(str(tmp_path))
+        svc = VaultService(config, signal_bus)
+        svc.start()
+        source = tmp_path / "private-remove.txt"
+        source.write_text("sensitive", encoding="utf-8")
+        vault_path = svc.import_file(str(source))
+        assert vault_path is not None
+        svc.set_mode(VaultMode.PRIVATE, persist=False)
+        return svc, vault_path
+
+    def test_private_remove_does_not_write_index(self, tmp_env, signal_bus):
+        svc, vault_path = self._import_then_enter_private(tmp_env, signal_bus)
+        index_path = svc._vault_root / "vault_index.json"
+
+        assert svc.remove_file(vault_path) is True
+
+        on_disk = json.loads(index_path.read_text(encoding="utf-8"))
+        assert vault_path in on_disk["items"]
+
+    def test_stop_while_private_does_not_write_index(self, tmp_env, signal_bus):
+        svc, vault_path = self._import_then_enter_private(tmp_env, signal_bus)
+        index_path = svc._vault_root / "vault_index.json"
+
+        assert svc.remove_file(vault_path) is True
+        svc.stop()
+
+        on_disk = json.loads(index_path.read_text(encoding="utf-8"))
+        assert vault_path in on_disk["items"]
+
+    def test_return_to_normal_flushes_private_index_changes(
+        self, tmp_env, signal_bus
+    ):
+        svc, vault_path = self._import_then_enter_private(tmp_env, signal_bus)
+        index_path = svc._vault_root / "vault_index.json"
+
+        assert svc.remove_file(vault_path) is True
+        svc.set_mode(VaultMode.NORMAL, persist=False)
+
+        on_disk = json.loads(index_path.read_text(encoding="utf-8"))
+        assert vault_path not in on_disk["items"]
+
     def test_audit_log(self, tmp_env, signal_bus):
         from ai_companion.services.vault_service import VaultService
 
