@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QComboBox,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -210,15 +211,43 @@ class GraphPanel(QWidget):
         self._refresh_btn.clicked.connect(self._refresh_graph)
         toolbar.addWidget(self._refresh_btn)
 
+        self._toggle3d_btn = QPushButton("3D View")
+        self._toggle3d_btn.setCheckable(True)
+        self._toggle3d_btn.setToolTip(
+            "True-3D graph: drag to orbit, wheel to zoom, "
+            "right-drag to pan, click a node to select, "
+            "double-click empty space to reframe."
+        )
+        self._toggle3d_btn.clicked.connect(self._on_toggle_3d)
+        toolbar.addWidget(self._toggle3d_btn)
+
         self._clear_btn = QPushButton("Clear")
         self._clear_btn.clicked.connect(self._clear_graph)
         toolbar.addWidget(self._clear_btn)
 
         layout.addLayout(toolbar)
 
-        # Graph view
+        # Graph views — 2D canvas and true-3D OpenGL, stacked. The 3D view
+        # degrades gracefully: if QtOpenGL itself can't even be imported or
+        # the widget reports GL failure at first paint, the toggle disables
+        # and 2D stays. Never let a driver problem kill the graph tab.
         self._graph_view = GraphView()
-        layout.addWidget(self._graph_view)
+        self._view_stack = QStackedWidget()
+        self._view_stack.addWidget(self._graph_view)  # index 0 = 2D
+
+        self._graph3d_view = None
+        self._last_nodes: dict[str, object] = {}
+        try:
+            from ai_companion.ui.graph3d_view import Graph3DView
+
+            self._graph3d_view = Graph3DView()
+            self._graph3d_view.gl_unavailable.connect(self._on_3d_unavailable)
+            self._graph3d_view.node_selected.connect(self._on_3d_node_selected)
+            self._view_stack.addWidget(self._graph3d_view)  # index 1 = 3D
+        except Exception as exc:  # noqa: BLE001 - import/env failure only
+            self._toggle3d_btn.setEnabled(False)
+            self._toggle3d_btn.setToolTip(f"3D view unavailable: {exc}")
+        layout.addWidget(self._view_stack)
 
         # Stats
         self._stats_label = QLabel("No graph data")
@@ -270,6 +299,22 @@ class GraphPanel(QWidget):
                 pos[0], pos[1],
                 color=node.color,
                 is_tag=node.node_type.value == "tag",
+            )
+
+        # Feed the 3D view the same graph (it does its own 3D layout).
+        self._last_nodes = {n.id: n for n in nodes}
+        if self._graph3d_view is not None:
+            self._graph3d_view.set_graph(
+                [
+                    {
+                        "id": n.id,
+                        "label": n.label,
+                        "color": n.color,
+                        "is_tag": n.node_type.value == "tag",
+                    }
+                    for n in nodes
+                ],
+                [(e.source_id, e.target_id) for e in edges],
             )
 
         # Update stats
@@ -354,4 +399,34 @@ class GraphPanel(QWidget):
 
     def _on_graph_cleared(self) -> None:
         self._graph_view.clear_graph()
+        if self._graph3d_view is not None:
+            self._graph3d_view.clear_graph()
         self._stats_label.setText("Graph cleared")
+
+    def _on_toggle_3d(self, checked: bool) -> None:
+        if checked and self._graph3d_view is not None:
+            self._view_stack.setCurrentIndex(1)
+            self._toggle3d_btn.setText("2D View")
+            self._graph3d_view.reset_camera()
+        else:
+            self._view_stack.setCurrentIndex(0)
+            self._toggle3d_btn.setText("3D View")
+
+    def _on_3d_unavailable(self, reason: str) -> None:
+        """GL failed at first paint on this machine — fall back to 2D and
+        say so, rather than leaving a dead widget in the stack."""
+        self._view_stack.setCurrentIndex(0)
+        self._toggle3d_btn.setChecked(False)
+        self._toggle3d_btn.setText("3D View")
+        self._toggle3d_btn.setEnabled(False)
+        self._toggle3d_btn.setToolTip(f"3D unavailable: {reason}")
+        self._stats_label.setText(
+            f"3D view needs working OpenGL ({reason}) — showing 2D."
+        )
+
+    def _on_3d_node_selected(self, node_id: str) -> None:
+        node = self._last_nodes.get(node_id)
+        if node is not None:
+            self._stats_label.setText(
+                f"Selected: {node.label}  ({node.node_type.value})"
+            )
