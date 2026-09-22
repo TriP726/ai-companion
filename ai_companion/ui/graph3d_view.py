@@ -100,11 +100,51 @@ out vec4 frag;
 void main() {
     float radius = length(vUV);
     if (radius > 1.65) discard;
-    float hotCore = 1.0 - smoothstep(0.0, 0.42, radius);
-    float aura = 1.0 - smoothstep(0.20, 1.65, radius);
-    float alpha = hotCore * 0.96 + aura * aura * (0.42 + vSpark * 0.20);
-    vec3 energy = mix(vColor, vec3(1.0), hotCore * 0.86);
+
+    // Three distinct layers for real visual depth:
+    // 1. Brilliant white-hot kernel (intense point-source core)
+    float hotCore = 1.0 - smoothstep(0.0, 0.22, radius);
+    // 2. Saturated colored mid-glow body
+    float midGlow = 1.0 - smoothstep(0.12, 0.65, radius);
+    // 3. Soft translucent outer aura
+    float aura = 1.0 - smoothstep(0.35, 1.60, radius);
+
+    float alpha = clamp(hotCore * 0.96 + midGlow * 0.80 + aura * aura * (0.32 + vSpark * 0.22), 0.0, 1.0);
+    vec3 midCol = vColor * (1.15 + 0.35 * vSpark);
+    vec3 energy = mix(midCol, vec3(1.0), hotCore * 0.94);
     frag = vec4(energy, alpha);
+}
+"""
+
+_BG_VERT = """#version 330 core
+out vec2 vScreen;
+void main() {
+    // Fullscreen triangle generated from gl_VertexID - no vertex buffer.
+    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    vScreen = p * 2.0 - 1.0;
+    gl_Position = vec4(vScreen, 0.9999, 1.0);
+}
+"""
+
+_BG_FRAG = """#version 330 core
+in vec2 vScreen;
+uniform vec3 baseColor;
+uniform vec3 glowColor;
+uniform float aspect;
+out vec4 frag;
+void main() {
+    vec2 p = vScreen;
+    p.x *= aspect;
+    vec2 centre = vec2(0.0, 0.12);
+    centre.x *= aspect;
+    float d = length(p - centre);
+    // One broad soft light behind the graph; the corners fall back to the
+    // dark base. No bands, no stars - a quiet illuminated backdrop.
+    float glow = exp(-d * d * 1.9);
+    float vignette = 1.0 - smoothstep(1.25, 2.10, length(p));
+    vec3 col = baseColor + glowColor * (glow * 0.60);
+    col *= 0.72 + 0.28 * vignette;
+    frag = vec4(col, 1.0);
 }
 """
 
@@ -159,46 +199,44 @@ void main() {
     vec2 glyphUV = mat2(cs, -sn, sn, cs) * vUV;
     vec2 absoluteUV = abs(glyphUV);
     float hexDistance = max(absoluteUV.y, absoluteUV.x * 0.866025 + absoluteUV.y * 0.5);
-    float angle = atan(vUV.y, vUV.x) + vRotation * 1.35;
 
-    float core = 1.0 - smoothstep(0.60, 0.72, hexDistance);
-    // The old border/innerRing/outerRing were each exp(-|x|*30-40), a
-    // razor-thin spike a couple of percent wide — three thin rings, which
-    // is exactly what "just thin lines" describes. rim is now a genuine
-    // band (peaks ~0.76-0.80, ~0.30 wide) instead of a hairline.
-    float rim = smoothstep(0.66, 0.76, hexDistance) - smoothstep(0.80, 0.96, hexDistance);
-    float innerRing = exp(-abs(radius - 0.40) * 22.0) * 0.30;
-    float outerRing = exp(-abs(radius - 1.05) * 22.0) * 0.30;
-    float segments = smoothstep(0.18, 0.78, 0.5 + 0.5 * sin(angle * 6.0));
-    float halo = (1.0 - smoothstep(0.76, 1.55, radius)) * 0.28 * vGlow;
+    // 1. Hot white kernel at the center (reads as a lit energy source)
+    float kernel = exp(-radius * radius * 28.0);
+    float innerGlow = exp(-radius * radius * 5.0) * 0.60;
 
-    // core is the solid body and stands on its own at full strength (not
-    // core * 0.62 — that 62% cap was the other half of why the fill read
-    // as faint/washed-out rather than bold). Rings are now additive
-    // accents layered on top of a shape that already reads as solid,
-    // instead of being max()'d in as competing shapes of their own.
-    float glyph = core;
-    glyph = max(glyph, rim * (0.95 + 0.25 * vGlow));
-    glyph += innerRing;
-    glyph += outerRing * segments * (0.5 + 0.25 * vGlow);
-    glyph = clamp(glyph, 0.0, 1.3);
-    if (vState > 0.5) glyph *= 1.25;
+    // 2. Six faceted spoke lines at 60 deg like cut lines on a gem
+    // Hexagon vertices are at pi/6 + k*pi/3 (30, 90, 150, 210, 270, 330 deg)
+    float theta = atan(glyphUV.y, glyphUV.x);
+    float spokeAngle = abs(sin((theta - 0.52359877) * 3.0));
+    float spokeDist = radius * spokeAngle;
+    float spokeMask = (1.0 - smoothstep(0.68, 0.78, hexDistance)) * smoothstep(0.08, 0.24, radius);
+    float spokes = exp(-spokeDist * 32.0) * spokeMask;
+    float facetLight = 0.85 + 0.15 * cos((theta - 0.52359877) * 6.0);
 
-    float alpha = clamp(max(glyph, halo), 0.0, 1.0);
+    // 3. Hexagon body and lit rim
+    float coreHex = 1.0 - smoothstep(0.66, 0.78, hexDistance);
+    float rim = smoothstep(0.70, 0.76, hexDistance) - smoothstep(0.80, 0.86, hexDistance);
+    float innerRing = exp(-abs(radius - 0.44) * 28.0) * 0.28;
+    float halo = (1.0 - smoothstep(0.74, 1.50, radius)) * 0.35 * vGlow;
+
+    // Selection/hover boost
+    float stateBoost = (vState > 0.5) ? 1.25 : 1.0;
+
+    float alpha = clamp(max(coreHex + rim * 0.6 + halo, kernel), 0.0, 1.0) * stateBoost;
+    alpha = clamp(alpha, 0.0, 1.0);
     if (alpha < 0.012) discard;
-    // darkEnergy/hotEnergy still mixed the interior toward white even
-    // with zero rim nearby (hotEnergy's white fraction had a 0.55
-    // floor) — so the body read as a pale, light wash rather than a
-    // bold, saturated version of the node's own colour, no matter how
-    // opaque core's alpha was. Blend by "edge-ness" (rim/innerRing/
-    // outerRing, not core) so the deep interior stays pure saturated
-    // vColor and only the rim/ring features themselves brighten toward
-    // white, the way a lit edge should look next to a solid body.
-    float edge = clamp(rim + innerRing + outerRing * segments, 0.0, 1.0);
-    vec3 fillColor = vColor * (0.72 + core * 0.40);
-    vec3 edgeColor = mix(vColor, vec3(1.0), 0.35 + edge * 0.55);
-    vec3 finalColor = mix(fillColor, edgeColor, edge);
-    frag = vec4(finalColor, alpha);
+
+    // Facet lighting on the saturated base
+    vec3 baseCol = vColor * (0.65 + 0.35 * facetLight) * (0.75 + coreHex * 0.25);
+    vec3 coloredBody = baseCol + vColor * (spokes * 0.75 + innerRing * 0.50 + innerGlow * 0.40);
+    vec3 rimCol = mix(vColor, vec3(1.0), 0.88);
+    vec3 nodeCol = mix(coloredBody, rimCol, rim);
+
+    // Blend hot white kernel at center and spoke crease highlights
+    nodeCol = mix(nodeCol, vec3(1.0), kernel);
+    nodeCol += vec3(1.0, 0.95, 1.0) * (spokes * 0.50);
+
+    frag = vec4(nodeCol, alpha);
 }
 """
 
@@ -254,8 +292,10 @@ class Graph3DView(QOpenGLWidget):
         self._buffers_dirty = True
         self._prog_nodes: Optional[QOpenGLShaderProgram] = None
         self._prog_edges: Optional[QOpenGLShaderProgram] = None
+        self._prog_bg: Optional[QOpenGLShaderProgram] = None
         self._vao_nodes: Optional[QOpenGLVertexArrayObject] = None
         self._vao_edges: Optional[QOpenGLVertexArrayObject] = None
+        self._vao_bg: Optional[QOpenGLVertexArrayObject] = None
         self._vbo_nodes: Optional[QOpenGLBuffer] = None
         self._vbo_edges: Optional[QOpenGLBuffer] = None
         self._edge_vertex_count = 0
@@ -469,8 +509,11 @@ class Graph3DView(QOpenGLWidget):
     def initializeGL(self) -> None:  # noqa: N802 (Qt override)
         try:
             self._gl = self.context().functions()
+            self._prog_bg = self._build_program(_BG_VERT, _BG_FRAG)
             self._prog_edges = self._build_program(_EDGE_VERT, _EDGE_FRAG)
             self._prog_nodes = self._build_program(_NODE_VERT, _NODE_FRAG)
+            self._vao_bg = QOpenGLVertexArrayObject(self)
+            self._vao_bg.create()
             self._vao_nodes = QOpenGLVertexArrayObject(self)
             self._vao_nodes.create()
             self._vao_edges = QOpenGLVertexArrayObject(self)
@@ -510,15 +553,11 @@ class Graph3DView(QOpenGLWidget):
         from ai_companion.ui.theme import theme
 
         gl = self._gl
-        # bg_surface's own V (HSV brightness) is only ~0.13. A
-        # multiplicative lighter() factor on a value that low barely moves
-        # it (185% of 0.13 is still only ~0.23, still reads as near-black).
-        # Floor V directly instead, keeping bg_surface's own hue/saturation
-        # (dialed back a little) so it still reads as the same dark-violet
-        # palette, just genuinely lit rather than a void.
+        # The backdrop is drawn by the _BG_* pass (dark base + one soft glow),
+        # so the clear colour only needs to match the pass's dark base.
         base = QColor(theme.p.bg_surface)
         hue, sat, _val, _alpha = base.getHsvF()
-        bg = QColor.fromHsvF(hue, max(0.0, min(sat * 0.55, 1.0)), 0.60)
+        bg = QColor.fromHsvF(hue, max(0.0, min(sat * 0.50, 1.0)), 0.12)
         gl.glClearColor(bg.redF(), bg.greenF(), bg.blueF(), 1.0)
         gl.glClear(_GL_COLOR_BUFFER_BIT | _GL_DEPTH_BUFFER_BIT)
         gl.glEnable(_GL_DEPTH_TEST)
@@ -533,6 +572,14 @@ class Graph3DView(QOpenGLWidget):
         proj = self._camera.projection_matrix(aspect)
         view = self._camera.view_matrix()
         elapsed = float(self._animation_time)
+
+        # Illuminated backdrop first. The quad sits at NDC z = 0.9999 so it
+        # passes the depth test against the cleared 1.0 without needing the
+        # depth test toggled off; depthMask(False) keeps it from writing.
+        if self._prog_bg is not None:
+            gl.glDepthMask(False)
+            self._draw_background(aspect)
+            gl.glDepthMask(True)
 
         if self._edge_vertex_count:
             # Particles are pure glow, and many of them can overlap on
@@ -565,6 +612,26 @@ class Graph3DView(QOpenGLWidget):
             self._prog_nodes.release()
 
         self._paint_labels(proj=proj, view=view, width=w, height=h)
+
+    def _draw_background(self, aspect: float) -> None:
+        """Screen-space illuminated backdrop behind the whole scene."""
+        if self._prog_bg is None or self._gl is None:
+            return
+        from ai_companion.ui.theme import theme
+
+        base = QColor(theme.p.bg_surface)
+        hue, sat, _v, _a = base.getHsvF()
+        dark = QColor.fromHsvF(hue, max(0.0, min(sat * 0.50, 1.0)), 0.12)
+        glow = QColor.fromHsvF(hue, max(0.0, min(sat * 0.80, 1.0)), 0.42)
+        prog = self._prog_bg
+        prog.bind()
+        _set_float_uniform(self._gl, prog, "aspect", float(aspect))
+        _set_vec3_uniform(self._gl, prog, "baseColor", dark.redF(), dark.greenF(), dark.blueF())
+        _set_vec3_uniform(self._gl, prog, "glowColor", glow.redF(), glow.greenF(), glow.blueF())
+        self._vao_bg.bind()
+        self._gl.glDrawArrays(_GL_TRIANGLES, 0, 3)
+        self._vao_bg.release()
+        prog.release()
 
     def _paint_labels(self, *, proj, view, width: int, height: int) -> None:
         """Text can't come from the shaders — draw labels with QPainter
@@ -605,14 +672,11 @@ class Graph3DView(QOpenGLWidget):
             ):
                 continue
             occupied.append(collision_box)
-            chip = QColor(theme.p.bg_surface)
-            chip.setAlpha(205 if emphasized else 175)
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(chip)
-            painter.drawRoundedRect(rect, 4, 4)
-            painter.setPen(
-                QColor(theme.p.fg_primary if emphasized else theme.p.fg_muted)
-            )
+            # Plain dim text, no chip: on the illuminated dark backdrop a
+            # solid rounded chip reads as a heavy dark box (the old look).
+            pen = QColor(theme.p.fg_primary if emphasized else theme.p.fg_muted)
+            pen.setAlpha(235 if emphasized else 165)
+            painter.setPen(pen)
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, label)
 
         if not self._nodes:
@@ -655,7 +719,7 @@ class Graph3DView(QOpenGLWidget):
 
             ec = _qcolor_rgbf(theme.p.accent)
             rows = []
-            particle_count = 18
+            particle_count = 32
             extent = 1.65
             particle_corners = (
                 (-extent, -extent), (extent, -extent), (extent, extent),
@@ -670,7 +734,7 @@ class Graph3DView(QOpenGLWidget):
                 delta = pb - pa
                 length = float(np.linalg.norm(delta))
                 digest = hashlib.sha256(f"{a}\0{b}".encode("utf-8")).digest()
-                phase = int.from_bytes(digest[:2], "big") / 65535.0
+                edge_phase = int.from_bytes(digest[:2], "big") / 65535.0
                 seed_axis = np.array(
                     [digest[2] / 127.5 - 1.0, digest[3] / 127.5 - 1.0, 0.65]
                 )
@@ -680,12 +744,45 @@ class Graph3DView(QOpenGLWidget):
                     perpendicular = np.array([0.0, 1.0, 0.0])
                 else:
                     perpendicular /= norm
+                binormal = np.cross(delta, perpendicular)
+                b_norm = float(np.linalg.norm(binormal))
+                if b_norm < 1e-6:
+                    binormal = np.array([1.0, 0.0, 0.0])
+                else:
+                    binormal /= b_norm
+
                 bend = min(max(length * 0.20, 35.0), 125.0)
-                control = (pa + pb) * 0.5 + perpendicular * bend
-                size = min(max(length * 0.018, 4.8), 8.5)
+                base_control = (pa + pb) * 0.5 + perpendicular * bend
+                base_size = min(max(length * 0.018, 4.8), 8.5)
 
                 for index in range(particle_count):
-                    particle_t = index / particle_count
+                    p_digest = hashlib.sha256(
+                        f"{a}\0{b}\0{index}".encode("utf-8")
+                    ).digest()
+                    # 1. Desynchronize spacing: natural clustering surges instead of rigid equidistant steps
+                    t_jitter = (p_digest[0] / 255.0 - 0.5) * (0.80 / particle_count)
+                    particle_t = (index / particle_count + t_jitter) % 1.0
+
+                    # 2. Individual phase offset: desyncs flicker & pulse timing per particle
+                    phase = (
+                        edge_phase
+                        + int.from_bytes(p_digest[1:3], "big") / 65535.0
+                    ) % 1.0
+
+                    # 3. Size jitter: small sparks to prominent energy droplets
+                    size_mult = 0.60 + 0.75 * (p_digest[3] / 255.0)
+                    size = base_size * size_mult
+
+                    # 4. Subtle lateral conduit dispersion: particles wander slightly around
+                    # the curve spine rather than marching single-file on a 1D hairline
+                    disp_perp = (p_digest[4] / 127.5 - 1.0) * (base_size * 1.6)
+                    disp_binorm = (p_digest[5] / 127.5 - 1.0) * (base_size * 1.6)
+                    control = (
+                        base_control
+                        + perpendicular * disp_perp
+                        + binormal * disp_binorm
+                    )
+
                     base = [*pa, *control, *pb, *ec, particle_t, phase]
                     rows.extend(
                         [*base, *corner, size] for corner in particle_corners
@@ -803,7 +900,41 @@ def _set_float_uniform(
         except TypeError:
             location = -1
     if location >= 0:
-        gl.glUniform1f(location, float(value))
+        if gl is not None and hasattr(gl, "glUniform1f"):
+            gl.glUniform1f(location, float(value))
+        else:
+            try:
+                program.setUniformValue(location, float(value))
+            except Exception:
+                pass
+
+
+def _set_vec3_uniform(
+    gl, program: QOpenGLShaderProgram, name: str, r: float, g: float, b: float
+) -> None:
+    """Set a vec3 uniform via glUniform3f or setUniformValue by integer location."""
+    try:
+        location = program.uniformLocation(name)
+    except TypeError:
+        location = -1
+    if location < 0:
+        try:
+            location = program.uniformLocation(name.encode("ascii"))
+        except TypeError:
+            location = -1
+    if location >= 0:
+        if gl is not None and hasattr(gl, "glUniform3f"):
+            gl.glUniform3f(location, float(r), float(g), float(b))
+        else:
+            try:
+                from PySide6.QtGui import QVector3D
+
+                program.setUniformValue(location, QVector3D(float(r), float(g), float(b)))
+            except Exception:
+                try:
+                    program.setUniformValue(location, float(r), float(g), float(b))
+                except Exception:
+                    pass
 
 
 def _to_qmat(m) -> QMatrix4x4:

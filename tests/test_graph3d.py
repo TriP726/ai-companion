@@ -318,6 +318,70 @@ class TestGraph3DViewData:
         _set_float_uniform(FakeGl(), FakeProgram(), "time", 1.25)
         assert calls == [("lookup", "time"), ("set", 7, 1.25)]
 
+    def test_vec3_uniforms_are_set_by_integer_location(self, app):
+        from ai_companion.ui.graph3d_view import _set_vec3_uniform
+
+        calls = []
+
+        class FakeProgram:
+            def uniformLocation(self, name):
+                calls.append(("lookup", name))
+                return 9
+
+        class FakeGl:
+            def glUniform3f(self, location, r, g, b):
+                calls.append(("set3", location, r, g, b))
+
+        _set_vec3_uniform(FakeGl(), FakeProgram(), "baseColor", 0.1, 0.2, 0.3)
+        assert calls == [("lookup", "baseColor"), ("set3", 9, 0.1, 0.2, 0.3)]
+
+    def test_draw_background_sets_uniforms_and_draws(self, app):
+        from ai_companion.ui.graph3d_view import _GL_TRIANGLES
+
+        view = _make_view()
+        calls = []
+
+        class FakeProgram:
+            def bind(self):
+                calls.append("bind_prog")
+
+            def release(self):
+                calls.append("release_prog")
+
+            def uniformLocation(self, name):
+                calls.append(("lookup", name))
+                return 5
+
+        class FakeVAO:
+            def bind(self):
+                calls.append("bind_vao")
+
+            def release(self):
+                calls.append("release_vao")
+
+        class FakeGl:
+            def glUniform1f(self, loc, val):
+                calls.append(("1f", loc, val))
+
+            def glUniform3f(self, loc, r, g, b):
+                calls.append(("3f", loc, r, g, b))
+
+            def glDrawArrays(self, mode, first, count):
+                calls.append(("draw", mode, first, count))
+
+        view._gl = FakeGl()
+        view._prog_bg = FakeProgram()
+        view._vao_bg = FakeVAO()
+        view._draw_background(1.5)
+
+        assert "bind_prog" in calls
+        assert ("lookup", "aspect") in calls
+        assert ("1f", 5, 1.5) in calls
+        assert ("lookup", "baseColor") in calls
+        assert ("lookup", "glowColor") in calls
+        assert ("draw", _GL_TRIANGLES, 0, 3) in calls
+        assert "release_prog" in calls
+
     def test_animation_clock_advances_and_requests_repaint(self, app):
         view = _make_view()
         before = view._animation_time
