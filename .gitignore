@@ -8,6 +8,14 @@ __pycache__/
 .pytest_cache/
 build/
 dist/
+*.exe
+*.pkg
+*.toc
+*.pyz
+/localpycs/
+warn-*.txt
+xref-*.html
+data_backups/
 
 # Large artifacts that must never be committed. All of these are
 # regenerated on demand:

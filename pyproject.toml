@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-companion"
@@ -40,3 +40,10 @@ ai-companion = "ai_companion.main:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+# Explicit package discovery. Auto-discovery is ambiguous in this layout
+# (top-level tests/ and tools/ directories exist), and ambiguous discovery
+# silently drops subpackages from the wheel. Naming them keeps
+# ai_companion.graph3d and friends in the build.
+[tool.setuptools.packages.find]
+include = ["ai_companion*"]
